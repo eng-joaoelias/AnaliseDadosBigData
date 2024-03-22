@@ -49,4 +49,9 @@ Este repositório contém uma série de exercícios práticos desenvolvidos em P
 ### Exercício 07 - Sequência de Fibonacci
 
 - **Arquivo:** `ex007.py`
-- Este exercício consiste em um programa Python que gera os termos da sequência de Fibonacci até uma quantidade fornecida pelo usuário.
+- Este exercício consiste em um programa Python que gera os termos da sequência de Fibonacci até uma quantidade fornecida pelo usuário de forma recursiva.
+
+### Exercício 08 - Estatística
+
+- **Arquivo:** `ex008.py`
+- Este exercício consiste em um programa Python que realiza cálculos estatísticos em uma lista fornecida e não ordenada.
