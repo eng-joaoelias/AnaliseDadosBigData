@@ -1,5 +1,14 @@
-qtdTermos = int(input("Entre com a quantidade de termos de Fibonacci>>"))
-vctTermos = [0, 1]
-for cont in range(2, qtdTermos - 2):
-    vctTermos.append(vctTermos[cont-1] + vctTermos[cont-2])
-print("Termos>> {}".format(vctTermos))
+def fibonacci(qtdTermos):
+    if qtdTermos == 1:
+        return [1]
+    elif qtdTermos == 2:
+        return [1, 1]
+    else:
+        seq = fibonacci(qtdTermos - 1)
+        seq.append(seq[-1] + seq[-2])
+        return seq
+
+qtdTermos = 5
+resultado = fibonacci(qtdTermos)
+print("Sequência de Fibonacci até o {}º termo:".format(qtdTermos))
+print(resultado)
