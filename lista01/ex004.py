@@ -1,23 +1,25 @@
-import datetime
+from datetime import date
 
-def funcaoQ04(caminhoArquivo, palavra1, palavra2):
-    # Lê o conteúdo do arquivo
-    with open(caminhoArquivo, 'r') as arquivo:
-        conteudo = arquivo.read()
+def substituirPalavras(arquivo, palavraAnterior, palavraNova):
+    with open(arquivo, 'r', encoding='utf-8') as arquivo:
+        conteudoTexto = arquivo.read()
 
-    novoConteudo = conteudo.replace(palavra1, palavra2)
-
-    numRepetPalavraAnterior = conteudo.count(palavra1)
-
-    diaHoje = str(datetime.date.today().day)
-    mesHoje = str(datetime.date.today().month)
-    anoHoje = str(datetime.date.today().year)
-
-    nome_novo_arquivo = palavra1 + "_" + palavra2 + "_" + diaHoje + "_" + mesHoje + "_" + anoHoje + "_" + str(numRepetPalavraAnterior) + ".txt"
-
-    with open(nome_novo_arquivo, 'w') as novoArquivo:
-        novoArquivo.write(novoConteudo)
-
-    print(f"Arquivo modificado salvo como {nome_novo_arquivo}")
-
-funcaoQ04("exemplo.txt", "antiga", "nova")
+    contagemPalavraAterior = conteudoTexto.count(palavraAnterior)
+        
+    if palavraAnterior in conteudoTexto:
+        conteudoTexto = conteudoTexto.replace(palavraAnterior, palavraNova)
+    
+    dia = date.today().day
+    mes = date.today().month
+    ano = date.today().year
+    
+    nomeNovoArquivo = f"{palavraAnterior}_{palavraNova}_{dia}_{mes}_{ano}_{contagemPalavraAterior}.txt"
+    
+    with open(nomeNovoArquivo, 'w') as novoArquivo:
+        novoArquivo.write(conteudoTexto)
+        
+def main():
+    substituirPalavras('2024.1_lista_analise_de_dados_Q3.txt', 'paralelepípedo', 'vibrador')
+    
+if __name__ == "__main__":
+    main()
