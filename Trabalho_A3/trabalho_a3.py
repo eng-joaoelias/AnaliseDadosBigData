@@ -9,6 +9,7 @@ Original file is located at
 
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 from google.colab import drive
 drive.mount('/content/drive')
@@ -60,9 +61,6 @@ print("Media de obesidade de mulheres: {}".format(media_porc_obesidade_mulher))
 df_obesidade[df_obesidade['Sex'] == 'Male'].describe()['Obesity no interval']
 
 df_obesidade[df_obesidade['Sex'] == 'Female'].describe()['Obesity no interval']
-
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 # Vamos criar DataFrames para os dados de homens e mulheres
 male_df = pd.DataFrame({
@@ -498,28 +496,55 @@ plt.show()
 
 df_pib_per_capita['Region'].value_counts() #Exibindo quais são as regiões do PIB per capita.
 
-# Calcular o crescimento do PIB per capita para cada região
-growth_by_region = df_pib_per_capita.groupby('Region').apply(lambda x: x.iloc[-1][' GDP_pp '] - x.iloc[0][' GDP_pp '])
+df_pib_per_capita.columns
 
-# Ordenar as regiões pelo crescimento do PIB per capita
-top_growth_regions = growth_by_region.sort_values(ascending=False)
+"""1. **Calcular a variação do PIB per capita por região ao longo do tempo**: Para isso, precisamos agrupar os dados por região e ano, calcular a média do PIB per capita por ano para cada região e, em seguida, calcular a variação do PIB per capita ao longo do tempo.
+2. **Identificar as regiões com maiores crescimentos**: Com a variação calculada, podemos identificar as regiões com os maiores crescimentos.
+"""
 
-# Exibir as regiões com maior crescimento do PIB per capita
-print("Regiões com maior crescimento do PIB per capita:")
-print(top_growth_regions)
+# Calcular a média do PIB per capita por ano para cada região
+df_mean_gdp = df_pib_per_capita.groupby(['Region', 'Year'])[' GDP_pp '].mean().reset_index()
 
-"""#### Gráfico para mostrar o crescimento/descrescimento do PIB *per capita* de .cada região"""
+# Pivotar os dados para ter os anos como colunas e as regiões como linhas
+df_pivot = df_mean_gdp.pivot(index='Region', columns='Year', values=' GDP_pp ')
 
-# Agrupar os dados por região e ano e calcular a média do PIB per capita
-mean_gdp_by_region = df_pib_per_capita.groupby(['Region', 'Year'])[' GDP_pp '].mean()
+# Calcular a variação percentual do PIB per capita
+growth = df_pivot.pct_change(axis='columns') * 100
 
-# Resetar o índice para facilitar o acesso aos dados
-mean_gdp_by_region = mean_gdp_by_region.reset_index()
+# Calcular a média da variação percentual ao longo dos anos para cada região
+average_growth = growth.mean(axis=1)
+
+# Identificar as regiões com maiores crescimentos
+top_regions = average_growth.sort_values(ascending=False)
+
+print("Crescimento médio anual de cada região\n", top_regions)
+
+# Encontrar o primeiro e o último ano do DataFrame
+first_year = df_pib_per_capita['Year'].min()
+last_year = df_pib_per_capita['Year'].max()
+
+# Filtrar os dados para o primeiro e o último ano
+df_first_year = df_pib_per_capita[df_pib_per_capita['Year'] == first_year]
+df_last_year = df_pib_per_capita[df_pib_per_capita['Year'] == last_year]
+
+# Calcular a média do PIB per capita no primeiro e no último ano para cada região
+gdp_first_year = df_first_year.groupby('Region')[' GDP_pp '].mean()
+gdp_last_year = df_last_year.groupby('Region')[' GDP_pp '].mean()
+
+# Calcular o crescimento percentual geral
+growth_general = ((gdp_last_year - gdp_first_year) / gdp_first_year) * 100
+
+# Ordenar as regiões pelo crescimento percentual geral
+growth_general_sorted = growth_general.sort_values(ascending=False)
+
+print("Crescimento geral das regiões:\n", growth_general_sorted)
+
+"""#### Gráfico para mostrar o crescimento/descrescimento do PIB *per capita* de cada região"""
 
 # Plotar o gráfico
 plt.figure(figsize=(12, 8))
-for region in mean_gdp_by_region['Region'].unique():
-    region_data = mean_gdp_by_region[mean_gdp_by_region['Region'] == region]
+for region in df_mean_gdp['Region'].unique():
+    region_data = df_mean_gdp[df_mean_gdp['Region'] == region]
     plt.plot(region_data['Year'], region_data[' GDP_pp '], label=region)
 
 plt.title('Crescimento do PIB per capita por região ao longo do tempo')
@@ -578,6 +603,8 @@ df_pib_filtered = df_pib_per_capita[['Country', 'Year', 'Region', ' GDP_pp ']]
 
 # Mesclar os dataframes com base nas colunas 'Country' e 'Year'
 df_combined = pd.merge(df_obesidade_filtered, df_pib_filtered, on=['Country', 'Year'], how='inner')
+
+df_combined
 
 # Calcular a média do PIB per capita e obesidade por região ou país
 mean_data = df_combined.groupby(['Region', 'Country']).mean()
@@ -643,4 +670,47 @@ for comparison, difference in differences.items():
 
 
 
+"""
+
+# Configurar o estilo dos gráficos
+sns.set(style="whitegrid")
+
+# Criar o gráfico de dispersão com linhas de regressão
+plt.figure(figsize=(10, 6))
+scatter_plot = sns.lmplot(
+    data=df_filtered,
+    x=' GDP_pp ',
+    y='Obesity no interval',
+    hue='Country',
+    ci=None,  # Remove o intervalo de confiança para as linhas de regressão
+    height=6,
+    aspect=1.5,
+    markers=['o', 's', 'D'],  # Diferentes marcadores para cada país
+    palette='Set1'  # Paleta de cores para diferenciar os países
+)
+
+# Ajustar o título e os rótulos dos eixos
+plt.title('Relação entre PIB per capita e Obesidade por País', fontsize=15)
+plt.xlabel('PIB per capita', fontsize=12)
+plt.ylabel('Obesidade (%)', fontsize=12)
+
+# Mostrar o gráfico
+plt.show()
+
+"""Ao analisar as diferenças entre Brasil, Estados Unidos e Portugal em relação à correlação entre PIB per capita e obesidade, podemos destacar algumas possíveis razões para as discrepâncias nos resultados:
+
+1. **Contexto Socioeconômico**:
+   - Cada país possui um contexto socioeconômico único, com diferentes níveis de desenvolvimento econômico, distribuição de renda, acesso a serviços de saúde e políticas públicas relacionadas à alimentação e estilo de vida. Essas diferenças podem influenciar a relação entre PIB per capita e obesidade.
+
+2. **Hábitos Alimentares e Estilo de Vida**:
+   - Os hábitos alimentares e o estilo de vida variam entre os países. Por exemplo, o padrão alimentar tradicional pode diferir significativamente entre o Brasil, os Estados Unidos e Portugal, afetando os índices de obesidade em cada país.
+
+3. **Políticas de Saúde Pública e Prevenção**:
+   - As políticas de saúde pública e prevenção da obesidade também podem ser diferentes em cada país. Isso inclui iniciativas governamentais relacionadas à educação nutricional, acesso a alimentos saudáveis, restrições à publicidade de alimentos não saudáveis, promoção da atividade física, entre outros.
+
+4. **Cultura e Percepções Sociais**:
+   - A cultura e as percepções sociais em relação à alimentação, imagem corporal e saúde podem variar entre os países. Por exemplo, atitudes em relação ao peso corporal, dietas da moda e estigma associado à obesidade podem influenciar os padrões de obesidade em cada país.
+
+5. **Estrutura Demográfica**:
+   - As características demográficas de cada país, como idade, gênero, etnia e composição populacional, podem influenciar os padrões de obesidade e sua relação com o PIB per capita.
 """
