@@ -21,16 +21,71 @@ drive.mount('/content/drive')
 ## Abrindo o DataSet Obesidade
 """
 
-df_obesidade = pd.read_csv('https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade-limpo.csv', sep = ',', index_col='Unnamed: 0')
+#Abrinndo o gabarito
+df_obesidade_gabarito = pd.read_csv('https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade-limpo.csv', sep = ',', index_col='Unnamed: 0')
 
-"""## Filtre as informações corretas para apresentar os resultados de obesidade."""
+#Verificando a quantidade de países
+len(df_obesidade_gabarito['Country'].unique())
 
-df_obesidade
+"""## Filtre as informações corretas para apresentar os resultados de obesidade.
 
-"""## Os dados entre homens mulheres são parecidos? Informe com números."""
+1. **Extrai a lista de países** da coluna 1 do DataFrame original, a partir da linha 5.
+2. **Repete cada país 126 vezes** para corresponder ao formato de saída desejado.
+3. **Gera a lista de anos** de 2016 a 1975, repetida 3 vezes para cada país.
+4. **Cria a lista de sexos** com 'Both sexes', 'Male', 'Female', repetida 195 vezes (para cada país e ano).
+5. **Extrai os dados de obesidade** correspondentes para cada país e adiciona esses dados à coluna 'Obesity (%)'.
+6. **Cria um novo DataFrame** com as colunas 'Country', 'Year', 'Sex' e 'Obesity (%)'.
+"""
+
+# Carregar os dados do arquivo CSV original
+url = 'https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade.csv'
+df_obesidade_original = pd.read_csv(url)
+
+# Extrair a lista de países
+countries = df_obesidade_original.iloc[3:, 0].repeat(126).reset_index(drop=True)
+
+# Gerar a lista de anos (2016-1975) repetida para cada país
+years = []
+for year in range(2016, 1974, -1):
+    years.extend([year] * 3)
+years = years * len(countries.unique())
+
+# Criar a lista de sexos, repetida 195 vezes
+sexes = ['Both sexes', 'Male', 'Female'] * (len(countries.unique()) * (2016 - 1975 + 1))
+
+# Extrair os dados de obesidade
+data = []
+for i, country in enumerate(countries.unique()):
+    country_data = df_obesidade_original.iloc[3 + i, 1:].values
+    data.extend(country_data)
+
+# Criar o DataFrame final
+df_obesidade_reorganizado = pd.DataFrame({
+    'Country': countries,
+    'Year': years,
+    'Obesity (%)': data,
+    'Sex': sexes
+})
+
+# Exibir o DataFrame resultante
+df_obesidade_reorganizado
+
+"""Conversão da coluna 'Year' para int:"""
+
+df_obesidade_reorganizado['Year'] = df_obesidade_reorganizado['Year'].astype(int)
+
+"""Ordenação dos dados pelo país e ano:"""
+
+df_obesidade_reorganizado = df_obesidade_reorganizado.sort_values(by=['Country', 'Year']).reset_index(drop=True)
+
+df_obesidade_reorganizado
+
+print((df_obesidade_reorganizado == df_obesidade_gabarito).value_counts()) #verificando igualdade entre os datasets
+
+"""## Limpe os dados do DataFrame, criando uma coluna de nome 'Obesity' que conterá os valores de obesidade. Transforme em float as colunas que porventura foram importadas como string."""
 
 # Extrair os três primeiros caracteres da coluna 'Obesity (%)' e converter para float
-df_obesidade['Obesity no interval'] = pd.to_numeric(df_obesidade['Obesity (%)'].str.extract(r'(\d+\.\d+|\d+)')[0], errors='coerce')
+df_obesidade_reorganizado['Obesity'] = pd.to_numeric(df_obesidade_reorganizado['Obesity (%)'].str.extract(r'(\d+\.\d+|\d+)')[0], errors='coerce')
 '''
 Regex para extração: A expressão regular r'(\d+\.\d+|\d+)' captura qualquer sequência de dígitos que pode ter ou não um ponto decimal. Ela funciona assim:
 
@@ -38,39 +93,41 @@ Regex para extração: A expressão regular r'(\d+\.\d+|\d+)' captura qualquer s
 \.: captura um ponto literal.
 (\d+\.\d+|\d+): captura uma sequência de dígitos que pode ou não ter um ponto decimal.
 '''
-df_obesidade
+df_obesidade_reorganizado
 
-df_obesidade[pd.isna(df_obesidade['Obesity no interval'])]
+"""## Os dados entre homens mulheres são parecidos? Informe com números."""
 
-# Remover registros com NaN em 'Obesity no interval'
-df_obesidade = df_obesidade.dropna(subset=['Obesity no interval'])
+df_obesidade_reorganizado[pd.isna(df_obesidade_reorganizado['Obesity'])]
+
+# Remover registros com NaN em 'Obesity' (coluna com os dados de obesidade tratados como float)
+df_obesidade_reorganizado = df_obesidade_reorganizado.dropna(subset=['Obesity'])
 
 # Filtrar o DataFrame para incluir apenas as linhas onde a coluna "Sex" é igual a "Male"
-male_df = df_obesidade[df_obesidade['Sex'] == 'Male']
+male_df = df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Male']
 
 # Calcular a média da coluna "Obesity no interval" para os valores filtrados
-media_porc_obesidade_homem = male_df['Obesity no interval'].mean()
+media_porc_obesidade_homem = male_df['Obesity'].mean()
 print("Media de obesidade de homens: {}".format(media_porc_obesidade_homem))
 
 # Filtrar o DataFrame para incluir apenas as linhas onde a coluna "Sex" é igual a "Male"
-female_df = df_obesidade[df_obesidade['Sex'] == 'Female']
+female_df = df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Female']
 
 # Calcular a média da coluna "Obesity no interval" para os valores filtrados
-media_porc_obesidade_mulher = female_df['Obesity no interval'].mean()
+media_porc_obesidade_mulher = female_df['Obesity'].mean()
 print("Media de obesidade de mulheres: {}".format(media_porc_obesidade_mulher))
 
-df_obesidade[df_obesidade['Sex'] == 'Male'].describe()['Obesity no interval']
+df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Male'].describe()['Obesity']
 
-df_obesidade[df_obesidade['Sex'] == 'Female'].describe()['Obesity no interval']
+df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Female'].describe()['Obesity']
 
 # Vamos criar DataFrames para os dados de homens e mulheres
 male_df = pd.DataFrame({
     'Sex': 'Male',
-    'Obesity': male_df['Obesity no interval']
+    'Obesity': male_df['Obesity']
 })
 female_df = pd.DataFrame({
     'Sex': 'Female',
-    'Obesity': female_df['Obesity no interval']
+    'Obesity': female_df['Obesity']
 })
 
 # Concatenar os DataFrames de homens e mulheres
@@ -89,12 +146,12 @@ plt.show()
 ## Qual o percentual médio de obesidade por sexo na américa do norte no ano de 2010?
 """
 
-df_obesidade['Country'].unique() #lista de países
+df_obesidade_reorganizado['Country'].unique() #lista de países
 
-exp_logica_america_norte = (df_obesidade['Country'] == 'United States of America') | \
-                            (df_obesidade['Country'] == 'Canada') | \
-                            (df_obesidade['Country'] == 'Mexico')
-df_america_norte = df_obesidade[exp_logica_america_norte]
+exp_logica_america_norte = (df_obesidade_reorganizado['Country'] == 'United States of America') | \
+                            (df_obesidade_reorganizado['Country'] == 'Canada') | \
+                            (df_obesidade_reorganizado['Country'] == 'Mexico')
+df_america_norte = df_obesidade_reorganizado[exp_logica_america_norte]
 df_america_norte
 
 df_america_norte_2010 = df_america_norte[df_america_norte['Year'] == 2010]
@@ -106,32 +163,32 @@ df_america_norte_2010_homens
 df_america_norte_2010_mulheres = df_america_norte_2010[df_america_norte_2010['Sex'] == 'Female']
 df_america_norte_2010_mulheres
 
-print('O percentual médio de homens obesos na América do Norte, em 2010, é {:.2f}%\n'.format(df_america_norte_2010_homens['Obesity no interval'].mean()))
-print('O percentual médio de mulheres obesas na América do Norte, em 2010, é {:.2f}%'.format(df_america_norte_2010_mulheres['Obesity no interval'].mean()))
+print('O percentual médio de homens obesos na América do Norte, em 2010, é {:.2f}%\n'.format(df_america_norte_2010_homens['Obesity'].mean()))
+print('O percentual médio de mulheres obesas na América do Norte, em 2010, é {:.2f}%'.format(df_america_norte_2010_mulheres['Obesity'].mean()))
 
-if abs(df_america_norte_2010_homens['Obesity no interval'].mean() - df_america_norte_2010_mulheres['Obesity no interval'].mean()) < 5:
+if abs(df_america_norte_2010_homens['Obesity'].mean() - df_america_norte_2010_mulheres['Obesity'].mean()) < 5:
   print('\nOs percentuais são próximos')
 else:
   print('\nOs percentuais são distantes')
 
 """## Qual os top 3 com maior e menor taxa de aumento de índices de obesidade nesse período de 2010? E em 2016?
 
-Passos executados
+Passos executados:
 
-1. **Filtrar os dados para incluir apenas os anos 2010 e 2016 e para o sexo "Both sexes".**
-2. **Pivotar os dados para ter as taxas de obesidade de 2010 e 2016 lado a lado.**
-3. **Calcular a diferença na taxa de obesidade entre 2010 e 2016 para cada país.**
-4. **Identificar os top 3 países com maiores e menores aumentos na taxa de obesidade.**
+1. **Filtrar os dados para incluir apenas registros onde `Sex` é "Both Sexes"**.
+2. **Calcular a diferença na obesidade (%) entre o primeiro e o último ano disponível para cada país**.
+3. **Classificar os países com base nessa diferença**.
+4. **Selecionar os top 3 países com o maior e menor aumento na obesidade (%)**.
 """
 
-#Vizualização das colunas
-df_obesidade.columns
+#Vizualização dos nomes das colunas
+df_obesidade_reorganizado.columns
 
 # Filtrar os dados para os anos de interesse e para "Both sexes"
-df_filtered = df_obesidade[(df_obesidade['Year'].isin([2010, 2016])) & (df_obesidade['Sex'] == 'Both sexes')]
+df_filtered = df_obesidade_reorganizado[(df_obesidade_reorganizado['Year'].isin([2010, 2016])) & (df_obesidade_reorganizado['Sex'] == 'Both sexes')]
 
 # Pivotar os dados para ter as taxas de obesidade de 2010 e 2016 lado a lado
-df_pivot = df_filtered.pivot_table(index=['Country', 'Sex'], columns='Year', values='Obesity no interval').reset_index()
+df_pivot = df_filtered.pivot_table(index=['Country', 'Sex'], columns='Year', values='Obesity').reset_index()
 df_pivot = df_pivot.drop('Sex', axis = 1)
 df_pivot
 
@@ -156,24 +213,16 @@ print(top_3_increase)
 print("\nTop 3 países com maior redução na taxa de obesidade entre 2010 e 2016:")
 print(top_3_decrease)
 
-"""## E os top 3 com maior e menor taxa de aumento de índices de obesidade no período completo, até o último registro ?
-
-Passos executados:
-
-1. **Filtrar os dados para incluir apenas registros onde `Sex` é "Both Sexes"**.
-2. **Calcular a diferença na obesidade (%) entre o primeiro e o último ano disponível para cada país**.
-3. **Classificar os países com base nessa diferença**.
-4. **Selecionar os top 3 países com o maior e menor aumento na obesidade (%)**.
-"""
+"""## E os top 3 com maior e menor taxa de aumento de índices de obesidade no período completo, até o último registro ?"""
 
 # Filtrar os dados para incluir apenas registros onde 'Sex' é "Both Sexes"
-df_obesidade_both_sexes = df_obesidade[df_obesidade['Sex'] == 'Both sexes'].copy()
+df_obesidade_both_sexes = df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Both sexes'].copy()
 
 # Verificar se há dados após filtragem e limpeza
 print(f"Total de registros após filtragem: {len(df_obesidade_both_sexes)}")
 
 # Remover registros com NaN em 'Obesity no interval'
-df_obesidade_both_sexes = df_obesidade_both_sexes.dropna(subset=['Obesity no interval'])
+df_obesidade_both_sexes = df_obesidade_both_sexes.dropna(subset=['Obesity'])
 
 # Obter o primeiro e o último ano para cada país
 first_last_years = df_obesidade_both_sexes.groupby('Country')['Year'].agg(['min', 'max']).reset_index()
@@ -183,8 +232,8 @@ first_year_data = pd.merge(df_obesidade_both_sexes, first_last_years[['Country',
 last_year_data = pd.merge(df_obesidade_both_sexes, first_last_years[['Country', 'max']], left_on=['Country', 'Year'], right_on=['Country', 'max'])
 
 # Renomear colunas para facilitar a manipulação
-first_year_data = first_year_data.rename(columns={'Obesity no interval': 'Obesity First Year', 'min': 'First Year'})
-last_year_data = last_year_data.rename(columns={'Obesity no interval': 'Obesity Last Year', 'max': 'Last Year'})
+first_year_data = first_year_data.rename(columns={'Obesity': 'Obesity First Year', 'min': 'First Year'})
+last_year_data = last_year_data.rename(columns={'Obesity': 'Obesity Last Year', 'max': 'Last Year'})
 
 # Mesclar os dados de primeiro e último ano
 combined_data = pd.merge(first_year_data[['Country', 'First Year', 'Obesity First Year']],
@@ -217,11 +266,11 @@ print(top_3_decrease[['Country', 'First Year', 'Last Year', 'Obesity First Year'
 ## Extraia o máximo de informação possível sobre o Brasil. (O que julga ser importante sobre esse dataset? Use gráficos e apresente.)
 """
 
-df_brasil = df_obesidade[df_obesidade['Country'] == 'Brazil']
+df_brasil = df_obesidade_reorganizado[df_obesidade_reorganizado['Country'] == 'Brazil']
 print('Dados sobre o Brasil:\n\n{}'.format(df_brasil))
 
-df_brasil_male = df_obesidade[(df_obesidade['Country'] == 'Brazil') & (df_obesidade['Sex'] == 'Male')] #Dados dos homens
-df_brasil_female = df_obesidade[(df_obesidade['Country'] == 'Brazil') & (df_obesidade['Sex'] == 'Female')] #Dados das mulheres
+df_brasil_male = df_obesidade_reorganizado[(df_obesidade_reorganizado['Country'] == 'Brazil') & (df_obesidade_reorganizado['Sex'] == 'Male')] #Dados dos homens
+df_brasil_female = df_obesidade_reorganizado[(df_obesidade_reorganizado['Country'] == 'Brazil') & (df_obesidade_reorganizado['Sex'] == 'Female')] #Dados das mulheres
 
 ## Plotando um gráfico sobre o crescimento da obesidade masculina no Brasil
 
@@ -230,28 +279,28 @@ df_brasil_male = df_brasil_male.sort_values('Year')
 
 # Plotar o gráfico
 plt.figure(figsize=(10, 6))
-plt.plot(df_brasil_male['Year'], df_brasil_male['Obesity no interval'], marker='o', color='b')
+plt.plot(df_brasil_male['Year'], df_brasil_male['Obesity'], marker='o', color='b')
 plt.title('Crescimento da obesidade masculina no Brasil')
 plt.xlabel('Ano')
 plt.ylabel('Taxa de obesidade (%)')
 plt.grid(True)
 plt.show()
 
-## Plotando um gráfico sobre o crescimento da obesidade masculina no Brasil
+## Plotando um gráfico sobre o crescimento da obesidade feminina no Brasil
 
 # Ordenar os dados pelo ano
 df_brasil_female = df_brasil_female.sort_values('Year')
 
 # Plotar o gráfico
 plt.figure(figsize=(10, 6))
-plt.plot(df_brasil_female['Year'], df_brasil_female['Obesity no interval'], marker='o', color='b')
+plt.plot(df_brasil_female['Year'], df_brasil_female['Obesity'], marker='o', color='b')
 plt.title('Crescimento da obesidade feminina no Brasil')
 plt.xlabel('Ano')
 plt.ylabel('Taxa de obesidade (%)')
 plt.grid(True)
 plt.show()
 
-print('Alguns cálculos estatísticos sobre obesidade no Brasil:\n\n{}'.format(df_brasil['Obesity no interval'].describe()))
+print('Alguns cálculos estatísticos sobre obesidade no Brasil:\n\n{}'.format(df_brasil['Obesity'].describe()))
 
 """### Comparar a obesidade no Brasil com o restante do mundo
 
@@ -259,13 +308,13 @@ Este código plota um gráfico comparativo das médias de obesidade ao longo do 
 """
 
 # Calcular a média da obesidade para cada ano no Brasil
-media_obesidade_brasil = df_brasil.groupby('Year')['Obesity no interval'].mean()
+media_obesidade_brasil = df_brasil.groupby('Year')['Obesity'].mean()
 
 # Filtrar os dados para incluir apenas os registros de outros países (excluindo o Brasil)
-df_outros_paises = df_obesidade[df_obesidade['Country'] != 'Brazil']
+df_outros_paises = df_obesidade_reorganizado[df_obesidade_reorganizado['Country'] != 'Brazil']
 
 # Calcular a média da obesidade para cada ano nos outros países
-media_obesidade_outros_paises = df_outros_paises.groupby('Year')['Obesity no interval'].mean()
+media_obesidade_outros_paises = df_outros_paises.groupby('Year')['Obesity'].mean()
 
 # Plotar os gráficos comparativos das médias de obesidade ao longo do tempo
 plt.figure(figsize=(10, 6))
@@ -281,10 +330,10 @@ plt.show()
 """Agora, há um interesse em saber quando o Brasil esteve abaixo da média mundial e acima da média mundial. O código a seguir visa resolver esse problema."""
 
 # 1. Calcule a média mundial de obesidade para cada ano
-media_obesidade_mundial = df_obesidade.groupby('Year')['Obesity no interval'].mean()
+media_obesidade_mundial = df_obesidade_reorganizado.groupby('Year')['Obesity'].mean()
 
 # 2. Calcule a média de obesidade para o Brasil para cada ano
-media_obesidade_brasil = df_brasil.groupby('Year')['Obesity no interval'].mean()
+media_obesidade_brasil = df_brasil.groupby('Year')['Obesity'].mean()
 
 # 3. Compare a média de obesidade do Brasil com a média mundial para cada ano
 diferenca_obesidade = media_obesidade_brasil - media_obesidade_mundial
@@ -307,7 +356,7 @@ from sklearn.linear_model import LinearRegression
 
 # Dados históricos de obesidade no Brasil
 anos_hist = np.array(df_brasil['Year']).reshape(-1, 1)  # Anos como matriz de uma coluna
-obesidade_hist = np.array(df_brasil['Obesity no interval'])  # Taxa de obesidade
+obesidade_hist = np.array(df_brasil['Obesity'])  # Taxa de obesidade
 
 # Ajustar um modelo de regressão linear aos dados históricos
 modelo = LinearRegression()
@@ -332,8 +381,8 @@ print('Erro absoluto na previsão do modelo: {}%'.format(err_abs))
 Nesta secção, será revelado o quanto a obesidade média masculina representa, no Brasil, em relação a feminina
 """
 
-media_obesidade_geral_masc_br = df_brasil_male['Obesity no interval'].mean()
-media_obesidade_geral_fem_br = df_brasil_female['Obesity no interval'].mean()
+media_obesidade_geral_masc_br = df_brasil_male['Obesity'].mean()
+media_obesidade_geral_fem_br = df_brasil_female['Obesity'].mean()
 media_relativa_masc_fem = media_obesidade_geral_masc_br / media_obesidade_geral_fem_br
 if media_relativa_masc_fem < 1:
   print('No geral, os homens são menos obesos que as mulheres. Representam {}% da média de mulheres.'.format(100*round(media_relativa_masc_fem, 4)))
@@ -346,8 +395,8 @@ Aqui, será mostrada a prevalência da obesidade entre homens e mulheres ao long
 
 # Plotar gráficos de obesidade por gênero
 plt.figure(figsize=(10, 6))
-plt.plot(df_brasil_male['Year'], df_brasil_male['Obesity no interval'], marker='o', color='blue', label='Homens')
-plt.plot(df_brasil_female['Year'], df_brasil_female['Obesity no interval'], marker='o', color='red', label='Mulheres')
+plt.plot(df_brasil_male['Year'], df_brasil_male['Obesity'], marker='o', color='blue', label='Homens')
+plt.plot(df_brasil_female['Year'], df_brasil_female['Obesity'], marker='o', color='red', label='Mulheres')
 plt.title('Prevalência da Obesidade por Gênero no Brasil')
 plt.xlabel('Ano')
 plt.ylabel('Obesidade (%)')
@@ -360,7 +409,7 @@ df_diferencas = pd.DataFrame()
 df_diferencas['Year'] = df_brasil_male['Year']  # Definir os anos como a primeira coluna
 
 # Calcular a diferença de obesidade masculina e feminina para cada ano
-df_diferencas['Diferenca_obesidade'] = df_brasil_female['Obesity no interval'].values - df_brasil_male['Obesity no interval'].values
+df_diferencas['Diferenca_obesidade'] = df_brasil_female['Obesity'].values - df_brasil_male['Obesity'].values
 
 # Contar os casos onde o percentual de obesidade feminina ultrapassa a masculina
 casos_positivos = (df_diferencas['Diferenca_obesidade'] > 0).sum()
@@ -380,7 +429,7 @@ import tensorflow as tf
 
 # Dados históricos de obesidade feminina
 anos = np.array(df_brasil_female['Year']).reshape(-1, 1)  # Anos como matriz de uma coluna
-obesidade = np.array(df_brasil_female['Obesity no interval'])  # Taxa de obesidade feminina
+obesidade = np.array(df_brasil_female['Obesity'])  # Taxa de obesidade feminina
 
 # Normalizar os dados
 anos_norm = (anos - anos.min()) / (anos.max() - anos.min())
@@ -568,7 +617,7 @@ plt.show()
 Primeiramente, os países estão com grafias distintas
 """
 
-df_obesidade['Country'].unique()
+df_obesidade_reorganizado['Country'].unique()
 
 df_pib_per_capita['Country'].unique()
 
@@ -595,7 +644,7 @@ country_mapping = {
 """2. Substituição dos Nomes dos Países"""
 
 # Substituir os nomes dos países no dataset de obesidade
-df_obesidade['Country'] = df_obesidade['Country'].replace(country_mapping)
+df_obesidade_reorganizado['Country'] = df_obesidade_reorganizado['Country'].replace(country_mapping)
 
 # Substituir os nomes dos países no dataset de PIB per capita (se necessário)
 df_pib_per_capita['Country'] = df_pib_per_capita['Country'].replace(country_mapping)
@@ -603,10 +652,10 @@ df_pib_per_capita['Country'] = df_pib_per_capita['Country'].replace(country_mapp
 """3. Filtragem e Mesclagem dos Dados"""
 
 # Filtrar o dataframe de obesidade para incluir apenas 'Both Sexes'
-df_obesidade_both_sexes = df_obesidade[df_obesidade['Sex'] == 'Both sexes']
+df_obesidade_both_sexes = df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Both sexes']
 
 # Selecionar as colunas desejadas dos dataframes
-df_obesidade_filtered = df_obesidade_both_sexes[['Country', 'Year', 'Obesity no interval']]
+df_obesidade_filtered = df_obesidade_both_sexes[['Country', 'Year', 'Obesity']]
 df_pib_filtered = df_pib_per_capita[['Country', 'Year', 'Region', ' GDP_pp ']]
 
 # Mesclar os dataframes com base nas colunas 'Country' e 'Year'
@@ -619,7 +668,7 @@ mean_data = df_combined.groupby(['Region', 'Country']).mean()
 
 # Plotar um gráfico de dispersão
 plt.figure(figsize=(10, 6))
-sns.scatterplot(data=mean_data, x=' GDP_pp ', y='Obesity no interval', hue='Region', palette='Set2')
+sns.scatterplot(data=mean_data, x=' GDP_pp ', y='Obesity', hue='Region', palette='Set2')
 plt.xlabel('PIB per capita')
 plt.ylabel('Obesidade')
 plt.title('Relação entre PIB per capita e Obesidade por Região')
@@ -627,14 +676,14 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.show()
 
 # Calcular a correlação entre PIB per capita e obesidade
-correlation = mean_data[' GDP_pp '].corr(mean_data['Obesity no interval'])
+correlation = mean_data[' GDP_pp '].corr(mean_data['Obesity'])
 print("Correlação entre PIB per capita e obesidade:", correlation)
 
 """Uma correlação de 0.388 sugere uma correlação positiva moderada entre o PIB per capita e a obesidade. Isso significa que há uma tendência de que países com um PIB per capita mais alto também tenham níveis mais altos de obesidade. No entanto, a correlação não é muito forte, o que significa que outros fatores também podem influenciar os níveis de obesidade em um país. Portanto, podemos dizer que a afirmação "Quanto mais rico, mais obeso" tem algum suporte com base nos dados, mas a relação não é tão forte e outros fatores também devem ser considerados."""
 
 # Gráfico de calor com a correlação entre PIB per capita e obesidade
 plt.figure(figsize=(10, 8))
-sns.heatmap(df_combined[[' GDP_pp ', 'Obesity no interval']].corr(), annot=True, cmap='coolwarm', fmt=".2f")
+sns.heatmap(df_combined[[' GDP_pp ', 'Obesity']].corr(), annot=True, cmap='coolwarm', fmt=".2f")
 plt.title('Correlação entre PIB per capita e Obesidade')
 plt.show()
 
@@ -647,7 +696,7 @@ df_filtered = df_combined[df_combined['Country'].isin(countries_of_interest)]
 # Função para calcular a correlação entre PIB per capita e obesidade para um país específico
 def calculate_correlation(df, country):
     df_country = df[df['Country'] == country]
-    correlation = df_country[' GDP_pp '].corr(df_country['Obesity no interval'])
+    correlation = df_country[' GDP_pp '].corr(df_country['Obesity'])
     return correlation
 
 # Calcular a correlação para Brasil, EUA e Portugal
@@ -688,7 +737,7 @@ plt.figure(figsize=(10, 6))
 scatter_plot = sns.lmplot(
     data=df_filtered,
     x=' GDP_pp ',
-    y='Obesity no interval',
+    y='Obesity',
     hue='Country',
     ci=None,  # Remove o intervalo de confiança para as linhas de regressão
     height=6,
@@ -734,7 +783,7 @@ correlations = {}
 
 for start, end in periods:
     df_period = df_combined[(df_combined['Year'] >= start) & (df_combined['Year'] <= end)]
-    correlation = df_period[' GDP_pp '].corr(df_period['Obesity no interval'])
+    correlation = df_period[' GDP_pp '].corr(df_period['Obesity'])
     correlations[f"{start}-{end}"] = correlation
 
 #print(correlations)
@@ -751,7 +800,7 @@ regional_correlations = {}
 
 for region in regions:
     df_region = df_combined[df_combined['Region'] == region]
-    correlation = df_region[' GDP_pp '].corr(df_region['Obesity no interval'])
+    correlation = df_region[' GDP_pp '].corr(df_region['Obesity'])
     regional_correlations[region] = correlation
 
 for region, correlation in regional_correlations.items():
