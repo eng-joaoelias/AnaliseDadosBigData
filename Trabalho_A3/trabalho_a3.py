@@ -11,16 +11,17 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+'''
 from google.colab import drive
 drive.mount('/content/drive')
+'''
 
 """# Sobre Obesidade
 
 ## Abrindo o DataSet Obesidade
 """
 
-df_obesidade = pd.read_csv('/content/drive/MyDrive/DataSetADBD/obesidade-limpo.csv', sep = ',', index_col='Unnamed: 0')
-df_obesidade
+df_obesidade = pd.read_csv('https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade-limpo.csv', sep = ',', index_col='Unnamed: 0')
 
 """## Filtre as informações corretas para apresentar os resultados de obesidade."""
 
@@ -42,7 +43,7 @@ df_obesidade
 df_obesidade[pd.isna(df_obesidade['Obesity no interval'])]
 
 # Remover registros com NaN em 'Obesity no interval'
-df_obesidade.dropna(subset=['Obesity no interval'])
+df_obesidade = df_obesidade.dropna(subset=['Obesity no interval'])
 
 # Filtrar o DataFrame para incluir apenas as linhas onde a coluna "Sex" é igual a "Male"
 male_df = df_obesidade[df_obesidade['Sex'] == 'Male']
@@ -113,45 +114,51 @@ if abs(df_america_norte_2010_homens['Obesity no interval'].mean() - df_america_n
 else:
   print('\nOs percentuais são distantes')
 
-"""## Qual os top 3 com maior e menor taxa de aumento de índices de obesidade nesse período de 2010? E em 2016?"""
+"""## Qual os top 3 com maior e menor taxa de aumento de índices de obesidade nesse período de 2010? E em 2016?
 
-# Filtrando os dados para incluir apenas os anos de 2010 e 2016
-df_2010 = df_obesidade[df_obesidade['Year'] == 2010]
-df_2016 = df_obesidade[df_obesidade['Year'] == 2016]
+Passos executados
 
-# Calculando a média de obesidade para cada país em 2010 e 2016
-media_obesidade_2010 = df_2010.groupby('Country')['Obesity no interval'].mean()
-media_obesidade_2016 = df_2016.groupby('Country')['Obesity no interval'].mean()
+1. **Filtrar os dados para incluir apenas os anos 2010 e 2016 e para o sexo "Both sexes".**
+2. **Pivotar os dados para ter as taxas de obesidade de 2010 e 2016 lado a lado.**
+3. **Calcular a diferença na taxa de obesidade entre 2010 e 2016 para cada país.**
+4. **Identificar os top 3 países com maiores e menores aumentos na taxa de obesidade.**
+"""
 
-# Calculando a diferença entre as médias de obesidade em 2016 e 2010 para cada país
-taxa_aumento = media_obesidade_2016 - media_obesidade_2010
+#Vizualização das colunas
+df_obesidade.columns
 
-# Ordenando os países pela taxa de aumento em 2010 e 2016
-top3_maior_aumento_2010 = taxa_aumento.nlargest(3)
-top3_menor_aumento_2010 = taxa_aumento.nsmallest(3)
+# Filtrar os dados para os anos de interesse e para "Both sexes"
+df_filtered = df_obesidade[(df_obesidade['Year'].isin([2010, 2016])) & (df_obesidade['Sex'] == 'Both sexes')]
 
-# Exibindo os resultados para 2010
-print("Top 3 com maior taxa de aumento de índices de obesidade em 2010:")
-print(top3_maior_aumento_2010)
-print("\nTop 3 com menor taxa de aumento de índices de obesidade em 2010:")
-print(top3_menor_aumento_2010)
+# Pivotar os dados para ter as taxas de obesidade de 2010 e 2016 lado a lado
+df_pivot = df_filtered.pivot_table(index=['Country', 'Sex'], columns='Year', values='Obesity no interval').reset_index()
+df_pivot = df_pivot.drop('Sex', axis = 1)
+df_pivot
 
-# Repetindo o processo para 2016
-taxa_aumento_2016 = media_obesidade_2016 - media_obesidade_2010
-top3_maior_aumento_2016 = taxa_aumento_2016.nlargest(3)
-top3_menor_aumento_2016 = taxa_aumento_2016.nsmallest(3)
+# Remover possíveis linhas com dados faltantes para os anos 2010 ou 2016
+df_pivot.dropna(subset=[2010, 2016], inplace=True)
 
-# Exibindo os resultados para 2016
-print("\nTop 3 com maior taxa de aumento de índices de obesidade em 2016:")
-print(top3_maior_aumento_2016)
-print("\nTop 3 com menor taxa de aumento de índices de obesidade em 2016:")
-print(top3_menor_aumento_2016)
+# Calcular a diferença na taxa de obesidade
+df_pivot['Diff'] = df_pivot[2016] - df_pivot[2010]
 
-df_2010
+df_pivot
+
+# Identificar os top 3 países com maior aumento na taxa de obesidade
+top_3_increase = df_pivot.nlargest(3, 'Diff')
+
+# Identificar os top 3 países com maior redução na taxa de obesidade
+top_3_decrease = df_pivot.nsmallest(3, 'Diff')
+
+# Exibir os resultados
+print("Top 3 países com maior aumento na taxa de obesidade entre 2010 e 2016:")
+print(top_3_increase)
+
+print("\nTop 3 países com maior redução na taxa de obesidade entre 2010 e 2016:")
+print(top_3_decrease)
 
 """## E os top 3 com maior e menor taxa de aumento de índices de obesidade no período completo, até o último registro ?
 
-Passos exeutados:
+Passos executados:
 
 1. **Filtrar os dados para incluir apenas registros onde `Sex` é "Both Sexes"**.
 2. **Calcular a diferença na obesidade (%) entre o primeiro e o último ano disponível para cada país**.
@@ -205,7 +212,10 @@ print(top_3_increase[['Country', 'First Year', 'Last Year', 'Obesity First Year'
 print("\nTop 3 países com menor aumento (ou maior diminuição) de obesidade:")
 print(top_3_decrease[['Country', 'First Year', 'Last Year', 'Obesity First Year', 'Obesity Last Year', 'Obesity Increase']])
 
-"""## Extraia o máximo de informação possível sobre o Brasil. (O que julga ser importante sobre esse dataset? Use gráficos e apresente.)"""
+"""O aumento significativo da obesidade nesses países pode ser atribuído à transição nutricional, onde houve uma mudança para uma dieta mais ocidentalizada, rica em alimentos processados, açúcares adicionados e gorduras saturadas.
+
+## Extraia o máximo de informação possível sobre o Brasil. (O que julga ser importante sobre esse dataset? Use gráficos e apresente.)
+"""
 
 df_brasil = df_obesidade[df_obesidade['Country'] == 'Brazil']
 print('Dados sobre o Brasil:\n\n{}'.format(df_brasil))
@@ -310,7 +320,7 @@ print("Estimativa de % obesidade no Brasil em 2023:", obesidade_2023[0])
 
 """Gráfico tirado do Ministério da saúde com os dados
 
-![Obesidade no Brasil](https://drive.google.com/uc?id=1RTJT-HtfTbrFLzOVlgraKJoOYZN5fhuK)
+![Obesidade no Brasil](https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesos_brasil_grafico.jpeg)
 """
 
 #Calculando o erro absoluto da previsão
@@ -415,7 +425,8 @@ plt.show()
 ## Abrindo o DataSet PIB Per Capita
 """
 
-df_pib_per_capita = pd.read_csv('/content/drive/MyDrive/DataSetADBD/PIB-Per-Capita.csv', sep = ',')
+#df_pib_per_capita = pd.read_csv('/content/drive/MyDrive/DataSetADBD/PIB-Per-Capita.csv', sep = ',')
+df_pib_per_capita = pd.read_csv('https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/PIB-Per-Capita.csv', sep = ',')
 df_pib_per_capita
 
 """## Limpeza de dados"""
@@ -496,8 +507,6 @@ plt.show()
 
 df_pib_per_capita['Region'].value_counts() #Exibindo quais são as regiões do PIB per capita.
 
-df_pib_per_capita.columns
-
 """1. **Calcular a variação do PIB per capita por região ao longo do tempo**: Para isso, precisamos agrupar os dados por região e ano, calcular a média do PIB per capita por ano para cada região e, em seguida, calcular a variação do PIB per capita ao longo do tempo.
 2. **Identificar as regiões com maiores crescimentos**: Com a variação calculada, podemos identificar as regiões com os maiores crescimentos.
 """
@@ -554,11 +563,10 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-"""## Quanto mais rico, mais obeso?"""
+"""## Quanto mais rico, mais obeso?
 
-#df_rel = [df_pib_per_capita[' GDP_pp '],
-
-"""Primeiramente, os países estão com grafias distintas"""
+Primeiramente, os países estão com grafias distintas
+"""
 
 df_obesidade['Country'].unique()
 
@@ -713,4 +721,45 @@ plt.show()
 
 5. **Estrutura Demográfica**:
    - As características demográficas de cada país, como idade, gênero, etnia e composição populacional, podem influenciar os padrões de obesidade e sua relação com o PIB per capita.
+
+### Análise de Dados Temporais
+A análise de correlação atual considera apenas os dados agregados. No entanto, ao analisar dados ao longo do tempo, pode-se obter insights mais profundos.
+
+- **Analisar Tendências Temporais**: Verificar se a correlação entre obesidade e PIB per capita muda ao longo do tempo. Isso pode ser feito calculando correlações em diferentes períodos (por exemplo, décadas).
+"""
+
+# Calcular correlações em diferentes períodos
+periods = [(1980, 1990), (1990, 2000), (2000, 2010), (2010, 2016)]
+correlations = {}
+
+for start, end in periods:
+    df_period = df_combined[(df_combined['Year'] >= start) & (df_combined['Year'] <= end)]
+    correlation = df_period[' GDP_pp '].corr(df_period['Obesity no interval'])
+    correlations[f"{start}-{end}"] = correlation
+
+#print(correlations)
+
+print("Correlação por período:\n")
+for period, correlation in correlations.items():
+    print(f"{period}: {correlation}")
+
+"""Correlação dentro de diferentes regiões para verificar se a relação entre obesidade e PIB per capita varia entre regiões."""
+
+# Calcular correlação por região
+regions = df_combined['Region'].unique()
+regional_correlations = {}
+
+for region in regions:
+    df_region = df_combined[df_combined['Region'] == region]
+    correlation = df_region[' GDP_pp '].corr(df_region['Obesity no interval'])
+    regional_correlations[region] = correlation
+
+for region, correlation in regional_correlations.items():
+    print(f"{region}: {correlation}")
+
+"""Hipóteses possíveis para explicar a alta correlação na América do Sul:
+
+* **Mudança na dieta:** Com o crescimento econômico, pode haver uma mudança na alimentação da população, indo de uma dieta baseada em alimentos frescos para outra mais industrializada e processada, geralmente rica em açúcares e gorduras. Isso poderia contribuir para o aumento da obesidade.
+* **Urbanização:** O desenvolvimento econômico muitas vezes está associado à urbanização. Nas cidades, as pessoas tendem a ter menos atividade física diária e o acesso a fast food e alimentos processados pode ser maior.
+* **Menos acesso a alimentos saudáveis:** Em alguns casos, o crescimento econômico pode não ser uniforme, beneficiando apenas uma parcela da população. Isso poderia levar a uma situação onde as pessoas com menor poder aquisitivo teriam menos acesso a alimentos saudáveis, como frutas, verduras e legumes frescos.
 """
