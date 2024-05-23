@@ -27,6 +27,11 @@ df_obesidade_gabarito = pd.read_csv('https://raw.githubusercontent.com/eng-joaoe
 #Verificando a quantidade de países
 len(df_obesidade_gabarito['Country'].unique())
 
+# Carregar os dados do arquivo CSV original
+url = 'https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade.csv'
+df_obesidade_original = pd.read_csv(url)
+df_obesidade_original.head()
+
 """## Filtre as informações corretas para apresentar os resultados de obesidade.
 
 1. **Extrai a lista de países** da coluna 1 do DataFrame original, a partir da linha 5.
@@ -36,10 +41,6 @@ len(df_obesidade_gabarito['Country'].unique())
 5. **Extrai os dados de obesidade** correspondentes para cada país e adiciona esses dados à coluna 'Obesity (%)'.
 6. **Cria um novo DataFrame** com as colunas 'Country', 'Year', 'Sex' e 'Obesity (%)'.
 """
-
-# Carregar os dados do arquivo CSV original
-url = 'https://raw.githubusercontent.com/eng-joaoelias/AnaliseDadosBigData/main/DataSetADBD/obesidade.csv'
-df_obesidade_original = pd.read_csv(url)
 
 # Extrair a lista de países
 countries = df_obesidade_original.iloc[3:, 0].repeat(126).reset_index(drop=True)
