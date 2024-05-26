@@ -10,6 +10,10 @@ Original file is located at
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from statsmodels.tsa.arima.model import ARIMA
 
 '''
 from google.colab import drive
@@ -34,7 +38,7 @@ df_obesidade_original.head()
 
 """## Filtre as informações corretas para apresentar os resultados de obesidade.
 
-1. **Extrai a lista de países** da coluna 1 do DataFrame original, a partir da linha 5.
+1. **Extrai a lista de países** da coluna 1 do DataFrame original, a partir da linha 4.
 2. **Repete cada país 126 vezes** para corresponder ao formato de saída desejado.
 3. **Gera a lista de anos** de 2016 a 1975, repetida 3 vezes para cada país.
 4. **Cria a lista de sexos** com 'Both sexes', 'Male', 'Female', repetida 195 vezes (para cada país e ano).
@@ -96,12 +100,16 @@ Regex para extração: A expressão regular r'(\d+\.\d+|\d+)' captura qualquer s
 '''
 df_obesidade_reorganizado
 
-"""## Os dados entre homens mulheres são parecidos? Informe com números."""
-
+#Procurando por valores nulos na coluna de obesidade
 df_obesidade_reorganizado[pd.isna(df_obesidade_reorganizado['Obesity'])]
 
 # Remover registros com NaN em 'Obesity' (coluna com os dados de obesidade tratados como float)
 df_obesidade_reorganizado = df_obesidade_reorganizado.dropna(subset=['Obesity'])
+
+#Verificando pela contegem de nulos em todas as colunas
+print(df_obesidade_reorganizado.isnull().sum())
+
+"""## Os dados entre homens mulheres são parecidos? Informe com números."""
 
 # Filtrar o DataFrame para incluir apenas as linhas onde a coluna "Sex" é igual a "Male"
 male_df = df_obesidade_reorganizado[df_obesidade_reorganizado['Sex'] == 'Male']
@@ -352,9 +360,6 @@ print("Intervalo em que o Brasil está abaixo da média mundial de obesidade:", 
 
 """### Um aspecto adicional: previsão para obesos em 2023 usando regressão linear."""
 
-import numpy as np
-from sklearn.linear_model import LinearRegression
-
 # Dados históricos de obesidade no Brasil
 anos_hist = np.array(df_brasil['Year']).reshape(-1, 1)  # Anos como matriz de uma coluna
 obesidade_hist = np.array(df_brasil['Obesity'])  # Taxa de obesidade
@@ -422,53 +427,105 @@ if 100*(casos_positivos / len(df_diferencas.index)) > porcentagem_a_comparar:
 else:
   print('Há mais homens obesos do que mulheres.')
 
-"""#### Prever a tendência de comportamento para os próximos 10 anos
-Para isso, podemos usar redes neurais
+"""#### Prever a tendência de comportamento da obesidade para os próximos 10 anos
+
+##### O que é ARIMA no Python?
+
+ARIMA, sigla para AutoRegressive Integrated Moving Average, é um método estatístico popular para **previsão de séries temporais** no Python. Ele se destaca por sua capacidade de lidar com diversos padrões temporais presentes em dados de séries temporais.
+
+**Funcionamento:**
+
+O ARIMA combina três componentes principais:
+
+* **Autorregressão (AR):** Captura a dependência de valores atuais em relação a valores passados da série temporal.
+* **Média móvel (MA):** Considera a média de erros passados para prever valores futuros.
+* **Diferenciação (I):** Transforma a série original para torná-la estacionária, ou seja, com média e variância constantes ao longo do tempo.
+
+**Parâmetros:**
+
+Um modelo ARIMA é definido por três parâmetros:
+
+* **p:** Ordem da autorregressão (AR).
+* **d:** Ordem da diferenciação (I).
+* **q:** Ordem da média móvel (MA).
+
+1. **Função `forecast_obesity`**:
+   - Recebe um DataFrame com os dados de obesidade e o número de anos a serem previstos (`steps`).
+   - Ajusta um modelo ARIMA aos dados de obesidade.
+   - Realiza a previsão para os próximos `steps` anos.
+   - Retorna a previsão e os anos correspondentes à previsão.
 """
 
-import tensorflow as tf
+# Função para fazer a previsão
+def forecast_obesity(df, steps=10):
+    # Definir o índice como o ano
+    df.set_index('Year', inplace=True)
 
-# Dados históricos de obesidade feminina
-anos = np.array(df_brasil_female['Year']).reshape(-1, 1)  # Anos como matriz de uma coluna
-obesidade = np.array(df_brasil_female['Obesity'])  # Taxa de obesidade feminina
+    # Ajustar o modelo ARIMA
+    model = ARIMA(df['Obesity'], order=(5, 1, 0))
+    model_fit = model.fit()
 
-# Normalizar os dados
-anos_norm = (anos - anos.min()) / (anos.max() - anos.min())
-obesidade_norm = (obesidade - obesidade.min()) / (obesidade.max() - obesidade.min())
+    # Fazer a previsão
+    forecast = model_fit.forecast(steps=steps)
+    forecast_index = np.arange(df.index.max() + 1, df.index.max() + 1 + steps)
 
-# Construir o modelo
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(10, activation='relu', input_shape=(1,)),
-    tf.keras.layers.Dense(1)
-])
+    # Resetar o índice
+    df.reset_index(inplace=True)
 
-# Compilar o modelo
-model.compile(optimizer='adam', loss='mean_squared_error')
+    return forecast, forecast_index
 
-# Treinar o modelo
-model.fit(anos_norm, obesidade_norm, epochs=1000, verbose=0)
+"""2. **Função `plot_combined_forecast`**:
+   - Função criada para plotar os dados históricos e as previsões para homens e mulheres no mesmo gráfico.
+   - Utiliza diferentes cores e estilos de linha para distinguir entre homens e mulheres.
+"""
 
-# Prever a obesidade feminina para os próximos 10 anos
-proximos_anos = np.arange(2017, 2027).reshape(-1, 1)  # Próximos 10 anos
-proximos_anos_norm = (proximos_anos - anos.min()) / (anos.max() - anos.min())  # Normalizar os próximos anos
-previsao_obesidade_norm = model.predict(proximos_anos_norm).flatten()  # Previsão da obesidade normalizada
-previsao_obesidade = previsao_obesidade_norm * (obesidade.max() - obesidade.min()) + obesidade.min()  # Desnormalizar a previsão
+# Função para plotar os dados históricos e a previsão
+def plot_combined_forecast(df_male, forecast_male, forecast_index_male, df_female, forecast_female, forecast_index_female, title):
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_male['Year'], df_male['Obesity'], label='Dados Históricos (Homems)')
+    plt.plot(forecast_index_male, forecast_male, label='Previsão (Homens)', color='blue', linestyle='--')
+    plt.plot(df_female['Year'], df_female['Obesity'], label='Dados Históricos (Mulheres)')
+    plt.plot(forecast_index_female, forecast_female, label='Previsão (Mulheres)', color='red', linestyle='--')
+    plt.title(title)
+    plt.xlabel('Ano')
+    plt.ylabel('Obesidade (%)')
+    plt.legend()
+    plt.show()
 
-# Exibir as previsões
-print("Previsão da obesidade feminina para os próximos 10 anos:")
-for ano, previsao in zip(proximos_anos.flatten(), previsao_obesidade):
-    print("Ano:", ano, "Previsão:", previsao)
+"""- **Modelo ARIMA**: O modelo ARIMA é um modelo popular para séries temporais que lida com autocorrelação nos dados. Ajustamos um modelo ARIMA (5, 1, 0), onde `5` é a ordem da parte autoregressiva, `1` é a ordem de diferenciação e `0` é a ordem da média móvel.
+- **Ajuste do Modelo**: O código ajusta um modelo ARIMA com parâmetros fixos. Para melhorar a precisão, você pode ajustar os parâmetros com base nos dados específicos.
+- **Previsão e Visualização**: Os gráficos mostram tanto os dados históricos quanto as previsões, facilitando a visualização das tendências futuras.
+"""
 
-# Plotar o gráfico das previsões
-plt.figure(figsize=(10, 6))
-plt.plot(anos, obesidade, marker='o', linestyle='-', color='blue', label='Dados históricos')
-plt.plot(proximos_anos, previsao_obesidade, marker='o', linestyle='--', color='red', label='Previsões')
-plt.title('Previsão da obesidade feminina para os próximos 10 anos')
-plt.xlabel('Ano')
-plt.ylabel('Taxa de obesidade (%)')
-plt.legend()
-plt.grid(True)
-plt.show()
+# Realizar a previsão para homens
+forecast_male, forecast_index_male = forecast_obesity(df_brasil_male)
+
+# Realizar a previsão para mulheres
+forecast_female, forecast_index_female = forecast_obesity(df_brasil_female)
+
+# Criar DataFrames com os dados previstos
+'''
+Depois de realizar a previsão para homens e mulheres, criamos
+dois DataFrames (forecast_male_df e forecast_female_df) que
+contêm os anos previstos e os valores de obesidade previstos.
+'''
+forecast_male_df = pd.DataFrame({'Year': forecast_index_male, 'Obesity': forecast_male})
+forecast_female_df = pd.DataFrame({'Year': forecast_index_female, 'Obesity': forecast_female})
+
+# Mostrar os valores previstos
+print("Previsão de obesidade para homens no Brasil:")
+print(forecast_male_df)
+
+print("\nPrevisão de obesidade para mulheres no Brasil:")
+print(forecast_female_df)
+
+"""3. **Exibir Previsões e Plotar Gráfico Combinado**:
+   - Exibe os valores previstos.
+   - Utiliza a função `plot_combined_forecast` para plotar os dados históricos e as previsões no mesmo gráfico.
+"""
+
+# Plotar os resultados combinados
+plot_combined_forecast(df_brasil_male, forecast_male, forecast_index_male, df_brasil_female, forecast_female, forecast_index_female, 'Previsão de Obesidade para Homens e Mulheres no Brasil')
 
 """#Sobre PIB Per Capita
 
